@@ -13,6 +13,12 @@ colors = {
     'red': (255, 55, 41)
 }
 
+difficulties = {
+    3: "Easy",
+    2: "Medium",
+    1: "Hard"
+}
+
 class Game():
     def __init__(self):
         pygame.init()
@@ -20,7 +26,7 @@ class Game():
 
         self.active = True
         self.running = True
-        self.help_menu_active = False
+        self.help_menu_active = True
 
         self.grid = [[Space(j, i) for i in range(9)] for j in range(9)]
         self.window_width = 690
@@ -29,6 +35,7 @@ class Game():
         self.rect_height = 70
 
         self.selected_space = None
+        self.difficulty = 2
 
         self.font = pygame.font.SysFont('Comic Sans', 60)
         self.helpfont = pygame.font.SysFont('Comic Sans', 20)
@@ -44,8 +51,26 @@ class Game():
         pygame.display.set_caption("Sudoku Solver! Press h for help")
 
         self.init_board_squares()
+        self.init_help_menu()
         self.update_board()
 
+    def init_help_menu(self):
+        self.text_y = 0
+        helptext = ["Welcome to Sudoku Solver!",
+                    "Here you can play or watch the computer solve a Sudoku puzzle",
+                    "The Soduku Solving has a built-in delay, so you can watch it work",
+                    "To fill in a square, click on it (it will turn blue), then type the number (1-9) that you want to input",
+                    "To generate a new Sudoku puzzle, press 'g'",
+                    "To solve the current Sudoku puzzle, press 's'",
+                    f"To change the difficulty, use the arrow keys. Current difficulty: {difficulties[self.difficulty]}",
+                    "To reopen this help page, press 'h'"]
+        
+        def rhf(text):
+            text_surface = (self.helpfont.render(text, 1, colors['black']), (0, self.text_y))
+            self.text_y += self.helpfont.size(text)[1]
+            return text_surface
+        
+        self.help_text_surfaces = [rhf(line) for line in helptext]
 
     def init_board_squares(self):
         for i in range(9):
@@ -101,7 +126,7 @@ class Game():
         board = [ [nums[pattern(r,c)] for c in cols] for r in rows ]
 
         # place a certain ratio of the numbers onto the board to create the puzzle
-        for space in rand.sample(range(81), 81 * 1//4):
+        for space in rand.sample(range(81), 81 * self.difficulty//4):
             self.grid[space//9][space%9].val = board[space//9][space%9]
 
     
@@ -111,7 +136,7 @@ class Game():
         solved_squares = []
         self.active = False
         while y != 9 and self.running:
-            time.sleep(0)
+            time.sleep(0.005)
             space = self.grid[x][y]
             if space.val == 0: # if it is a blank square, solve it
                 for i in range(1, 10):
@@ -182,21 +207,9 @@ class Game():
 
 
     def help_menu(self):
-        # text_y = 0
-        # help_rect = pygame.draw.rect(self.window, colors['red'], pygame.Rect(0, 0, 400, 400), border_radius=3)
-        # helptext = ["Welcome to Sudoku Solver!",
-        #             "Here you can play or watch the computer solve a Sudoku puzzle",
-        #             "To fill in a square, click on it (it will turn blue), then type the number (1-9) that you want to input",
-        #             "To generate a new Sudoku puzzle, press 'g'",
-        #             "To solve the current Sudoku puzzle, press 's'",
-        #             "To reopen this help page, press 'h'"]
-        
-        # def rhf(text):
-        #     text_surface = (self.helpfont.render(text, 1, colors['black']), (0, text_y))
-        #     text_y += self.helpfont.size(text)[1]
-        #     return text_surface
-
-        # self.window.blits([rhf(line, text_y) for line in helptext])
+        self.text_y = 0
+        pygame.draw.rect(self.window, colors['off white'], pygame.Rect(0, 0, 690, 238), border_radius=3)
+        self.window.blits(self.help_text_surfaces)
 
     
     def input_handler(self, event:pygame.event.Event):
@@ -216,7 +229,9 @@ class Game():
                 self.selected_space.color = colors['light blue']
         
         if event.type == pygame.KEYDOWN:
-            print(event.key)
+            if self.help_menu_active:
+                self.help_menu_active = False
+                self.window.fill(colors['off white'])
             if event.key-48 in [1,2,3,4,5,6,7,8,9]:
                 if self.selected_space is not None:
                     if self.check_move(self.selected_space, event.key-48):
@@ -227,7 +242,17 @@ class Game():
                 threading.Thread(target=self.solve_puzzle).start()
             elif event.key == 104: # h key
                 self.help_menu_active = True
-            
+            elif event.key == 1073741906: # up arrow key
+                if self.difficulty > 1:
+                    self.difficulty -= 1
+                    text = f"To change the difficulty, use the arrow keys. Current difficulty: {difficulties[self.difficulty]}"
+                    self.help_text_surfaces[-2] = (self.helpfont.render(text, 1, colors['black']), self.help_text_surfaces[-2][1])
+            elif event.key == 1073741905: # down arrow key
+                if self.difficulty < 3:
+                    self.difficulty += 1
+                    text = f"To change the difficulty, use the arrow keys. Current difficulty: {difficulties[self.difficulty]}"
+                    self.help_text_surfaces[-2] = (self.helpfont.render(text, 1, colors['black']), self.help_text_surfaces[-2][1])
+
 
     def gameloop(self):
         while self.running:
